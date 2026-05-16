@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unix File Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span class="logo-text">UNIX<em>FS</em></span>
+    </div>
+    <div class="path-bar">
+      <span class="path-label">$</span>
+      <div id="breadcrumb" class="breadcrumb"></div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="disk-usage-bar">
+      <span class="disk-label" id="diskLabel">Loading...</span>
+      <div class="disk-track"><div class="disk-fill" id="diskFill"></div></div>
+    </div>
+    <button class="btn-icon" id="btnSearch" title="Search (Ctrl+F)">⌕</button>
+    <button class="btn-icon" id="btnToggleHidden" title="Toggle hidden files">⊙</button>
+    <button class="btn-icon" id="btnTerminal" title="Terminal (Ctrl+`)">⌨</button>
+    <button class="btn-icon" id="btnUpload" title="Upload file">⇧</button>
+  </div>
+</header>
+
+<!-- Main Layout -->
+<div class="workspace">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">BOOKMARKS</div>
+      <div class="sidebar-items" id="bookmarks">
+        <div class="sidebar-item active" data-path="/">
+          <span class="si-icon">⌂</span><span>Home</span>
+        </div>
+        <div class="sidebar-item" data-path="/documents">
+          <span class="si-icon">◫</span><span>Documents</span>
+        </div>
+        <div class="sidebar-item" data-path="/images">
+          <span class="si-icon">◧</span><span>Images</span>
+        </div>
+        <div class="sidebar-item" data-path="/scripts">
+          <span class="si-icon">◩</span><span>Scripts</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">ACTIONS</div>
+      <div class="sidebar-items">
+        <div class="sidebar-item action-item" id="btnNewDir">
+          <span class="si-icon">+</span><span>New Folder</span>
+        </div>
+        <div class="sidebar-item action-item" id="btnNewFile">
+          <span class="si-icon">+</span><span>New File</span>
+        </div>
+        <div class="sidebar-item action-item" id="btnZip" title="Zip selected">
+          <span class="si-icon">◈</span><span>Zip Selected</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">SORT BY</div>
+      <div class="sidebar-items">
+        <div class="sidebar-item sort-item active" data-sort="name"><span class="si-icon">⇅</span><span>Name</span></div>
+        <div class="sidebar-item sort-item" data-sort="size"><span class="si-icon">⇅</span><span>Size</span></div>
+        <div class="sidebar-item sort-item" data-sort="mtime"><span class="si-icon">⇅</span><span>Modified</span></div>
+        <div class="sidebar-item sort-item" data-sort="type"><span class="si-icon">⇅</span><span>Type</span></div>
+      </div>
+    </div>
+    <div id="selectionInfo" class="selection-info" style="display:none">
+      <div class="si-count"><span id="selCount">0</span> selected</div>
+      <button class="btn-danger-sm" id="btnDeleteSelected">Delete Selected</button>
+    </div>
+  </aside>
+
+  <!-- File Panel -->
+  <main class="file-panel">
+    <div class="panel-header">
+      <div class="view-toggle">
+        <button class="view-btn active" id="viewGrid" title="Grid view">⊞</button>
+        <button class="view-btn" id="viewList" title="List view">≡</button>
+      </div>
+      <div id="fileCount" class="file-count"></div>
+    </div>
+    <div id="fileGrid" class="file-grid"></div>
+    <div id="emptyState" class="empty-state" style="display:none">
+      <div class="empty-icon">∅</div>
+      <div class="empty-text">Empty directory</div>
+    </div>
+  </main>
+
+  <!-- Right Panel (Properties) -->
+  <aside class="right-panel" id="rightPanel">
+    <div class="rp-header">
+      <span>PROPERTIES</span>
+      <button class="close-btn" id="closeProps">✕</button>
+    </div>
+    <div id="propContent" class="prop-content"></div>
+  </aside>
+
+</div>
+
+<!-- Terminal Drawer -->
+<div id="terminalDrawer" class="terminal-drawer">
+  <div class="terminal-header">
+    <div class="term-title">
+      <span class="term-dot red"></span>
+      <span class="term-dot yellow"></span>
+      <span class="term-dot green"></span>
+      <span class="term-name">bash — unix-file-manager</span>
+    </div>
+    <button class="close-btn" id="closeTerminal">✕</button>
+  </div>
+  <div id="termOutput" class="term-output"></div>
+  <div class="term-input-row">
+    <span class="term-prompt" id="termPrompt">$</span>
+    <input type="text" id="termInput" class="term-input" placeholder="type a command..." autocomplete="off" spellcheck="false">
+  </div>
+</div>
+
+<!-- Modals -->
+<div id="overlay" class="overlay"></div>
+
+<!-- Editor Modal -->
+<div id="editorModal" class="modal">
+  <div class="modal-header">
+    <span id="editorTitle" class="modal-title">Edit File</span>
+    <div class="modal-actions">
+      <button class="btn-primary" id="btnSaveFile">Save</button>
+      <button class="close-btn" id="closeEditor">✕</button>
+    </div>
+  </div>
+  <div class="editor-wrap">
+    <div class="line-numbers" id="lineNumbers"></div>
+    <textarea id="editorArea" class="editor-area" spellcheck="false"></textarea>
+  </div>
+</div>
+
+<!-- Input Modal -->
+<div id="inputModal" class="modal modal-sm">
+  <div class="modal-header">
+    <span id="inputTitle" class="modal-title">Input</span>
+    <button class="close-btn" id="closeInput">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="text" id="inputField" class="modal-input" autocomplete="off">
+    <div class="modal-footer">
+      <button class="btn-primary" id="inputConfirm">OK</button>
+      <button class="btn-ghost" id="inputCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chmod Modal -->
+<div id="chmodModal" class="modal modal-sm">
+  <div class="modal-header">
+    <span class="modal-title">Change Permissions</span>
+    <button class="close-btn" id="closeChmod">✕</button>
+  </div>
+  <div class="modal-body">
+    <div class="chmod-grid">
+      <div class="chmod-col-header"></div>
+      <div class="chmod-col-header">Read</div>
+      <div class="chmod-col-header">Write</div>
+      <div class="chmod-col-header">Execute</div>
+      <div class="chmod-row-label">Owner</div>
+      <input type="checkbox" class="chmod-cb" data-who="owner" data-perm="r">
+      <input type="checkbox" class="chmod-cb" data-who="owner" data-perm="w">
+      <input type="checkbox" class="chmod-cb" data-who="owner" data-perm="x">
+      <div class="chmod-row-label">Group</div>
+      <input type="checkbox" class="chmod-cb" data-who="group" data-perm="r">
+      <input type="checkbox" class="chmod-cb" data-who="group" data-perm="w">
+      <input type="checkbox" class="chmod-cb" data-who="group" data-perm="x">
+      <div class="chmod-row-label">Others</div>
+      <input type="checkbox" class="chmod-cb" data-who="others" data-perm="r">
+      <input type="checkbox" class="chmod-cb" data-who="others" data-perm="w">
+      <input type="checkbox" class="chmod-cb" data-who="others" data-perm="x">
+    </div>
+    <div class="octal-preview">Octal: <span id="octalPreview">0755</span></div>
+    <div class="modal-footer">
+      <button class="btn-primary" id="chmodConfirm">Apply</button>
+      <button class="btn-ghost" id="chmodCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Search Panel -->
+<div id="searchPanel" class="search-panel">
+  <div class="search-inner">
+    <div class="search-bar">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search files..." autocomplete="off">
+      <button class="close-btn" id="closeSearch">✕</button>
+    </div>
+    <div id="searchResults" class="search-results"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Context Menu -->
+<div id="contextMenu" class="context-menu">
+  <div class="cm-item" id="cmOpen">Open</div>
+  <div class="cm-item" id="cmRename">Rename</div>
+  <div class="cm-item" id="cmCopy">Copy Path</div>
+  <div class="cm-item" id="cmDownload">Download</div>
+  <div class="cm-item" id="cmChmod">Permissions</div>
+  <div class="cm-divider"></div>
+  <div class="cm-item cm-danger" id="cmDelete">Delete</div>
+</div>
+
+<!-- Hidden upload input -->
+<input type="file" id="fileUploadInput" style="display:none" multiple>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
